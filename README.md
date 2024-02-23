@@ -23,7 +23,7 @@ Install dependencies in requirements file.
 
 ```bash
 pip install -r requirements.txt
-```bash
+```
 
 ## Usage
 
