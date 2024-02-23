@@ -31,9 +31,22 @@ All the experiments can be run by executing the following script:
 
 python ./main_exp.py --train_houses 2 5 --test_houses 1 -sd redd -td redd --device refrigerator -lr 0.001 -e 20 -b 64
 
+### Arguments
 
-| Argument   | Description                      | Example Usage          |
-|------------|----------------------------------|------------------------|
-| `--arg1`   | Description of argument 1.       | `--arg1 value1`        |
-| `--arg2`   | Description of argument 2.       | `--arg2 value2`        |
+| Argument                | Type      | Default     | Description                                     |
+|-------------------------|-----------|-------------|-------------------------------------------------|
+| --train_houses          | int list  | (Required)  | List of houses for training                     |
+| --test_houses           | int list  | (Required)  | List of houses for testing                      |
+| --device                | str       | refrigerator| Target device to train on                        |
+| --nas                   | str       |             | How to deal with missing values. Possible values: 'interpolate', 'drop' |
+| -sr, --sampling_rate    | int       | 1           | Target sampling rate                            |
+| -st, --standardise      | bool      | False       | Standardize data                                |
+| -lr, --learning_rate    | float     | 0.001       | Learning rate for the model                      |
+| -e, --epochs            | int       | 20          | Number of training epochs                       |
+| -b, --batch             | int       | 32          | Batch size                                      |
+| --loss                  | str       | mse         | Loss function to use for training               |
+| -sd, --source_domain    | str       | redd        | Which source domain will be used. Options are 'redd' or 'ukdale' |
+| -td, --target_domain    | str       | redd        | Which target domain will be used. Options are 'redd' or 'ukdale' |
+| -tl, --transfer_learning | bool      | False       | Enable fine tuning                        |
+
  
