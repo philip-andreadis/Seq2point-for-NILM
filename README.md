@@ -75,6 +75,9 @@ python ./main_exp.py --train_houses 2 5 --test_houses 1 -sd redd -td redd --devi
 
 ### Resampling experiments
 
+REDD (original resolution 1/3 Hz) is resampled to 1 and 1/10 Hz and UK-DALE (original resolution 1/6 Hz) is downsampled to 1/10 Hz. The model is trained and tested on each one of the sampling frequencies for each 
+one of the target devices as seen in the following tables. The provided metrics are product of the model's evaluation on held-out test houses (house 1 for REDD and house 2 for UK-DALE).
+
 ![REDD results](images/redd_results.png)
 
 ![UK-DALE results](images/ukdale_results.png)
