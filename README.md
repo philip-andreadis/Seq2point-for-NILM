@@ -27,9 +27,28 @@ pip install -r requirements.txt
 
 ## Usage
 
+The dataset directory should follow the structure below:
+
+**Data:**
+     ```
+     ./
+     ├── redd
+     │   ├── house1.csv
+     │   ├── house2.csv
+     │   └── ...
+     ├── ukdale
+     │   ├── house1.csv
+     │   └── ...
+     └── ...
+     ```
+
+
+
 All the experiments can be run by executing the following script:
 
+```bash
 python ./main_exp.py --train_houses 2 5 --test_houses 1 -sd redd -td redd --device refrigerator -lr 0.001 -e 20 -b 64
+```
 
 ### Arguments
 
