@@ -8,13 +8,14 @@
 Implementation of the sequence-to-point CNN methodology for Non-Intrusive Load Monitoring as part of a research internship at Powerchainger Groningen.
 
 The seq2point model has been trained and tested on different sampling frequencies of two datasets, namely REDD and UK-DALE. 
-Cross-domain testing between the two datasets with an optional fine-tuning step is also available. 
+Cross-domain testing between the two datasets with an optional fine-tuning step also available. 
 
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Results](#results)
 
 ## Installation
 
@@ -70,3 +71,12 @@ python ./main_exp.py --train_houses 2 5 --test_houses 1 -sd redd -td redd --devi
 | -tl, --transfer_learning | bool      | False       | Enable fine tuning                        |
 
  
+## Results 
+
+### Resampling experiments
+
+![REDD results](dataset_structure.png)
+
+![UK-DALE results](dataset_structure.png)
+
+Our results suggest that overall, maintaining the original sampling rate has yielded the best performance for the majority of the tested devices. Nonetheless, it is concluded that downsampling can be used as a viable option, when storage space and computational resources are limited and some potential performance drop can be tolerated. The same cannot be stated for upsampling as respective results do not justify the huge increase in training time.
