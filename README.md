@@ -7,7 +7,7 @@
 
 Implementation of the sequence-to-point CNN methodology for Non-Intrusive Load Monitoring, by [Zhang et al.](https://arxiv.org/abs/1612.09106) as part of a research internship at Powerchainger Groningen.
 
-The seq2point model has been trained and tested on different sampling frequencies of two datasets, namely REDD and UK-DALE. 
+The seq2point model has been trained and tested on different sampling frequencies (1Hz - 1/10Hz) of two datasets, namely REDD and UK-DALE. 
 Cross-domain testing between the two datasets with an optional fine-tuning step also available. 
 
 
@@ -47,7 +47,7 @@ The dataset directory should follow the structure below:
 
 
 
-All the experiments can be run by executing the following script:
+All the experiments can be run by executing the following (example) script:
 
 ```bash
 python ./main_exp.py --train_houses 2 5 --test_houses 1 -sd redd -td redd --device refrigerator -lr 0.001 -e 20 -b 64
@@ -102,6 +102,27 @@ function used to train such a model can be formulated as:
 where θ are the model parameters. Finally, in order
 to receive predictions for the entire input sequence Y =
 (y1, .., yT ), Y is padded with ⌈W/2⌉ zeros on both sides.
+
+### CNN architecture
+
+The CNN model used for the experiments is the one seen in the figure below.
+In particular, it consist of five 1-dimensional convolutional
+layers with varying kernel size and number of filters, a
+dense layer with 1024 units and the output layer that has
+a single linear unit. Both the dense and the convolutional
+layers have LeakyReLu activation functions. The input of
+the network is windows of the total consumption sequence
+that have a size of W timesteps. The authors of the pa-
+per suggest a window size of 599. The
+model’s output is a single scalar value, which corresponds
+to the predicted consumption of the target appliance at
+the midpoint of the input window, as described above. 
+
+![cnn_diagram](images/cnn_diagram.png)
+
+The total and individual power consumptions are
+scaled by subtracting their respective mean and dividing by their standard deviation
+before they are fed to the network for training. 
 
  
 ## Results 
