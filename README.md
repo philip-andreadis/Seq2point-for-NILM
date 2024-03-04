@@ -118,7 +118,7 @@ model’s output is a single scalar value, which corresponds
 to the predicted consumption of the target appliance at
 the midpoint of the input window, as described above. 
 
-![cnn_diagram](images/cnn_diagram.png)
+![ccn_diagram](images/ccn_diagram.png)
 
 The total and individual power consumptions are
 scaled by subtracting their respective mean and dividing by their standard deviation
