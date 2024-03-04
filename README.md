@@ -74,6 +74,8 @@ python ./main_exp.py --train_houses 2 5 --test_houses 1 -sd redd -td redd --devi
 
 ## Methodology
 
+### Sequence-to-point learning
+
 The idea is that the network learns to represent
 the midpoint of the appliance sequence given a window of
 the total consumption, also referred to as mains, as input.
@@ -86,13 +88,20 @@ midpoint element xτ is a nonlinear function of the total
 consumption window and it is also expected that the value
 of xτ is connected to the information of the mains before
 and after it.
-The sequence-to-point approach does not perform se-
-quence to sequence mapping, but rather defines a neural
+
+The sequence-to-point approach does not perform sequence to sequence mapping, but rather defines a neural
 network f that maps the sliding windows Yt:t+W −1 of the
 input to the midpoint xτ of the corresponding windows
 Xt:t+W −1 of the output. Hence, the network is modelled
-as xτ = f (Yt:t+W −1) + ε, where ε is a noise term
+as xτ = f (Yt:t+W −1) + ε, where ε is a noise term. The loss
+function used to train such a model can be formulated as:
 
+![seq2point](images/seq2point.png)
+
+
+where θ are the model parameters. Finally, in order
+to receive predictions for the entire input sequence Y =
+(y1, .., yT ), Y is padded with ⌈W/2⌉ zeros on both sides.
 
  
 ## Results 
