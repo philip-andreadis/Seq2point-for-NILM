@@ -1,4 +1,4 @@
-# Seq2point-for-NILM
+# Sequence-to-point learning for NILM
 
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.7.0-orange)](https://www.tensorflow.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -15,6 +15,7 @@ Cross-domain testing between the two datasets with an optional fine-tuning step 
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Methodology](#methodology)
 - [Results](#results)
 
 ## Installation
@@ -69,6 +70,29 @@ python ./main_exp.py --train_houses 2 5 --test_houses 1 -sd redd -td redd --devi
 | -sd, --source_domain    | str       | redd        | Which source domain will be used. Options are 'redd' or 'ukdale' |
 | -td, --target_domain    | str       | redd        | Which target domain will be used. Options are 'redd' or 'ukdale' |
 | -tl, --transfer_learning | bool      | False       | Enable fine tuning                        |
+
+
+## Methodology
+
+The idea is that the network learns to represent
+the midpoint of the appliance sequence given a window of
+the total consumption, also referred to as mains, as input.
+Specifically, the input of the network consists of sliding
+windows of the mains power Yt:t+W −1 and the output is
+the midpoint element xτ of the corresponding window of
+the target appliance. W represents a predefined window
+size and τ = t + ⌊W/2⌋. Thus, it is assumed that the
+midpoint element xτ is a nonlinear function of the total
+consumption window and it is also expected that the value
+of xτ is connected to the information of the mains before
+and after it.
+The sequence-to-point approach does not perform se-
+quence to sequence mapping, but rather defines a neural
+network f that maps the sliding windows Yt:t+W −1 of the
+input to the midpoint xτ of the corresponding windows
+Xt:t+W −1 of the output. Hence, the network is modelled
+as xτ = f (Yt:t+W −1) + ε, where ε is a noise term
+
 
  
 ## Results 
