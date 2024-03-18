@@ -10,7 +10,7 @@ TensorFlow implementation of the sequence-to-point CNN methodology for Non-Intru
 The seq2point model has been trained and tested on different sampling frequencies (1Hz - 1/10Hz) of two datasets, namely REDD and UK-DALE. 
 Cross-domain testing between the two datasets with an optional fine-tuning step also available. 
 
-You can find the scientific report [here]([A study of Sequence-to-point Learning for Non-Intrusive Load Monitoring.pdf](https://github.com/philip-andreadis/Seq2point-for-NILM/blob/main/A%20study%20of%20Sequence-to-point%20Learning%20for%20Non-Intrusive%20Load%20Monitoring.pdf))
+You can find the scientific report [here](https://github.com/philip-andreadis/Seq2point-for-NILM/blob/main/A%20study%20of%20Sequence-to-point%20Learning%20for%20Non-Intrusive%20Load%20Monitoring.pdf)
 
 
 ## Table of Contents
