@@ -67,5 +67,14 @@ class CNNModel():
         return predictions
 
     def save_model(self, dir, filename):
-        self.model.save(dir + '/' + filename + '.keras')
+        # Save the model as keras file
+        # self.model.save(dir + '/' + filename + '.keras')
+
+        # Save the model as h5 and json files
+        model_json = self.model.to_json()
+        with open(dir + "/" + filename + '.json', "w") as json_file:
+            json_file.write(model_json)
+        # serialize weights to HDF5
+        self.model.save_weights(dir + "/" + filename + '.h5')
+        print("Saved model to disk")
 

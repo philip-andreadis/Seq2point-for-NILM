@@ -81,6 +81,8 @@ def get_args():
             'device': args.device,
             'scale': args.standardise,
             'lr': args.learning_rate,
+            'sr': args.sampling_rate,
+            'nas': args.nas,
             'epochs': args.epochs,
             'batch_size': args.batch,
             'loss': args.loss,
@@ -108,12 +110,12 @@ if __name__ == "__main__":
 
 
     # Training loops    
-    loops = 2 # set the number of training iterations
+    loops = 1 # set the number of training iterations
     final_metrics = [] # store the final metrics for each loop
-    save = False # save the model
+    save = True # save the model
 
     # Filename
-    filename = f'{params["device"]}_house{houses_str}on{houses_test_str}_{sflag}_{params["lr"]}_{params["loss"]}_{params["epochs"]}epoch_{params["batch_size"]}b_{tflag}'
+    filename = f'{params["device"]}_house{houses_str}on{houses_test_str}_{sflag}_{params["nas"]}_{params["sr"]}_{params["lr"]}_{params["loss"]}_{params["epochs"]}epoch_{params["batch_size"]}b_{tflag}'
     dir = f'results_{params["source"]}_on_{params["target"]}/{filename}'
     print('filename:', filename)
     print('dir:', dir)
@@ -127,13 +129,13 @@ if __name__ == "__main__":
         # Get source and target domains, in seq2point format
         X_train, Y_train, X_test, Y_test, output_scaler = seq2point(params['houses'], params['houses_test'], source_domain=params['source'],
                                                                      target_domain=params['target'], device=params['device'], w=599, 
-                                                                     standardize=params['scale'], ds=6)
+                                                                     standardize=params['scale'], ds=params['sr'], nas=params['nas'])
         
-        # Reduce the size of the dataset for script testing
-        X_train = X_train[:1000]
-        Y_train = Y_train[:1000]
-        X_test = X_test[:1000]
-        Y_test = Y_test[:1000]
+        # Reduce the size of the dataset for script testing (toggle commenting)
+        # X_train = X_train[:1000]
+        # Y_train = Y_train[:1000]
+        # X_test = X_test[:1000]
+        # Y_test = Y_test[:1000]
 
         print("Train/test split:")
         print("X_train shape:", X_train.shape)
@@ -209,6 +211,8 @@ if __name__ == "__main__":
         for avg in metrics_avg:
             f.write(f"{avg}\n")
 
-    # Save the model
+    # Save the model 
     if save:
         model.save_model(dir, filename)
+    
+    

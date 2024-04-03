@@ -26,7 +26,7 @@ def process_redd(houses, ds, nas, device):
     #deal with nas
     if not(ds > 3):                 # No downsample chosen. Proceed with drop/interpolate
         if nas == 'interpolate':
-            # if the gap is less then 2 minutes, then interpolate, else leave it as nan
+            # if the gap is less than 2 minutes, then interpolate, else leave it as nan
             df = df.interpolate(method='linear', limit=120)
         elif nas == 'drop':
             df = df.dropna()
@@ -97,7 +97,7 @@ def process_pc(device):
 
 
 
-def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas='interpolate', standardize=True, ds=1):
+def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas='drop', standardize=True, ds=1):
     """
     Parameters
     ----------
