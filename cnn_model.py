@@ -3,6 +3,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import regularizers
 from keras.callbacks import CSVLogger
+import math
+from utils import CustomEarlyStopping
 
 class CNNModel():
     def __init__(self, optimizer, loss='mse', metrics=['mse', 'mae']):
@@ -41,18 +43,47 @@ class CNNModel():
                  ]
         )
 
+        # Early stopping callback
+        self.early_stopping = tf.keras.callbacks.EarlyStopping(
+                                    monitor='val_loss',
+                                    min_delta=0,
+                                    patience=5,
+                                    verbose=1,
+                                    mode='auto',
+                                    baseline=None,
+                                    restore_best_weights=False,
+                                    start_from_epoch=14
+                                )
+        
+        # Custom early stopping
+        self.custom_early_stopping = CustomEarlyStopping(patience=5)
+        
+        # Learning rate scheduler
+        def scheduler(epoch, lr):
+            return lr * math.exp(-0.01*epoch) 
+
+        # Define scheduler
+        self.lr_scheduler = keras.callbacks.LearningRateScheduler(scheduler, verbose=1)
+          
         # Compile the model
         self.model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
 
 
-    def train(self, X_train, Y_train, dir, filename, i, epochs=20, batch_size=32, verbose=2):
+    def train(self, X_train, Y_train, X_val, Y_val, dir, filename, i, epochs=20, batch_size=32, verbose=2):
 
         # Check if GPU is available
         print("\n ---Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
-        # Fit the model
+        # Csv logger
         self.csv_logger = CSVLogger(dir + '/' + 'training_history_' + filename + '(' + str(i) + ')' + '.csv', separator=',', append=False)
-        self.history = self.model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, shuffle=True,validation_split=0.1, callbacks=[self.csv_logger], verbose=verbose)
+
+        # Choose callbacks
+        # callbacks = [self.csv_logger, self.early_stopping, self.lr_scheduler]
+        callbacks = [self.csv_logger, self.early_stopping]
+        # callbacks = [self.csv_logger]
+
+        # Fit the model    
+        self.history = self.model.fit(X_train, Y_train, validation_data=(X_val,Y_val), epochs=epochs, batch_size=batch_size, shuffle=True, validation_split=0.1, callbacks=callbacks, verbose=verbose)
         
     def freeze_conv(self):
         for layer in self.model.layers[:-2]:

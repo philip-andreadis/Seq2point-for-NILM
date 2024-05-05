@@ -1,6 +1,6 @@
 import pandas as pd
 import time
-from seq2point import seq2point
+from seq2point import preprocess
 from cnn_model import CNNModel
 from utils import threshold, avg_metrics
 import numpy as np
@@ -16,8 +16,6 @@ from parser import create_arg_parser
 import sys
 import math
 import os
-
-# hi
 
 def compute_metrics(Y_test, predictions, i, device):
     """Compute the metrics of the model.
@@ -114,7 +112,7 @@ if __name__ == "__main__":
     loops = 3 # set the number of training iterations
     final_metrics = [] # store the final metrics for each loop
     save = True # save the model
-    last_point = True if params['md'] == 'last_point' else False # disaggregation mode
+    
 
     # Filename
     filename = f'{params["device"]}_house{houses_str}on{houses_test_str}_{sflag}_{params["nas"]}_{params["sr"]}_{params["lr"]}_{params["loss"]}_{params["epochs"]}epoch_{params["batch_size"]}b_{tflag}'
@@ -129,19 +127,23 @@ if __name__ == "__main__":
     for i in range(loops):
         
         # Get source and target domains, in seq2point format
-        X_train, Y_train, X_test, Y_test, output_scaler = seq2point(params['houses'], params['houses_test'], source_domain=params['source'],
+        X_train, Y_train, X_val, Y_val, X_test, Y_test, output_scaler = preprocess(params['houses'], params['houses_test'], source_domain=params['source'],
                                                                      target_domain=params['target'], device=params['device'], w=599, 
-                                                                     standardize=params['scale'], ds=params['sr'], nas=params['nas'], last_point=last_point)
+                                                                     standardize=params['scale'], ds=params['sr'], nas=params['nas'], mode=params['md'])
         
         # Reduce the size of the dataset for script testing (toggle commenting)
-        # X_train = X_train[:1000]
-        # Y_train = Y_train[:1000]
-        # X_test = X_test[:1000]
-        # Y_test = Y_test[:1000]
+        X_train = X_train[:1000]
+        Y_train = Y_train[:1000]
+        X_val = X_val[:100]
+        Y_val = Y_val[:100]
+        X_test = X_test[:1000]
+        Y_test = Y_test[:1000]
 
         print("Train/test split:")
         print("X_train shape:", X_train.shape)
         print("Y_train shape:", Y_train.shape)
+        print("X_val shape:", X_val.shape)
+        print("Y_val shape:", Y_val.shape)
         print("X_test shape:", X_test.shape)
         print("Y_test shape:", Y_test.shape)
         
@@ -149,13 +151,13 @@ if __name__ == "__main__":
         # Instantiate the CNN model
         model = CNNModel(loss=params['loss'],optimizer=tf.keras.optimizers.Adam(learning_rate=params['lr']),metrics=['mse', 'mae'])
 
-        # reshape X_train from [samples, timesteps] into [samples, timesteps, features]
-        n_features = 1
+        # reshape X_train and X_val from [samples, timesteps] into [samples, timesteps, features]
         X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
+        X_val = X_val.reshape((X_val.shape[0], X_val.shape[1], 1))
 
-        # Train network
+        # Train the model
         print(f'Training on {params["source"]} domain...')
-        model.train(X_train, Y_train, dir=dir, filename=filename, epochs=params['epochs'], batch_size=params['batch_size'], verbose=2, i=i)
+        model.train(X_train, Y_train, X_val, Y_val, dir=dir, filename=filename, epochs=params['epochs'], batch_size=params['batch_size'], verbose=2, i=i)
 
         # Fine tuning on the target domain
         if params['tl']:
@@ -165,7 +167,7 @@ if __name__ == "__main__":
                 house_ft = [5]
             elif params['target'] == 'ukdale':
                 house_ft = [6]
-            _, _, X_ft, Y_ft, _ = seq2point(params['houses'], house_ft, source_domain=params['source'], target_domain=params['target'],
+            _, _, _, _, X_ft, Y_ft, _ = preprocess(params['houses'], house_ft, source_domain=params['source'], target_domain=params['target'],
                                                                     device=params['device'], w=599, standardize=params['scale'], ds=6) 
 
             # Freeze conv layers

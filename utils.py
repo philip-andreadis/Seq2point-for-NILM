@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import math
+import tensorflow as tf
 
 
 
@@ -104,3 +106,39 @@ def avg_metrics(final_metrics, loops):
         metrics_avg.append(avg)
 
     return metrics_avg
+
+
+
+
+class CustomEarlyStopping(tf.keras.callbacks.Callback):
+    """ 
+    This class implements a custom early stopping callback that stops training when the validation loss 
+    does not improve for a certain number of epochs.
+    """
+    def __init__(self, patience=5):
+        super(CustomEarlyStopping, self).__init__()
+        self.patience = patience
+        self.wait = 0
+        self.prev_loss = None
+        self.start_from_epoch = 14 
+
+    def on_epoch_end(self, epoch, logs=None):
+        current_loss = logs.get('val_loss')
+
+        # warm-up period
+        if epoch < self.start_from_epoch:
+            return
+        
+        if current_loss is None:
+            return
+        
+        if self.prev_loss is not None and current_loss >= self.prev_loss:
+            self.wait += 1
+        else:
+            self.wait = 0
+        
+        if self.wait >= self.patience:
+            print(f'\nEarly stopping at epoch {epoch} as validation loss has not improved for {self.patience} consecutive epochs.')
+            self.model.stop_training = True
+
+        self.prev_loss = current_loss

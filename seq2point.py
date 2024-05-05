@@ -11,6 +11,10 @@ def process_redd(houses, ds, nas, device):
         Helper function to preprocess redd.
     """
 
+    # If single house
+    if type(houses) == int:
+        houses = [houses]
+
     # Load multiple houses for training
     c = 1
     for i in houses:
@@ -47,6 +51,9 @@ def process_ukdale(houses,ds, device):
     """
         Helper function to preprocess ukdale.
     """
+    # If single house
+    if type(houses) == int:
+        houses = [houses]
 
     # Load multiple houses for training
     c = 1
@@ -98,6 +105,10 @@ def process_pc(device):
 
 
 def process_heatpump(houses):
+    # If single house
+    if type(houses) == int:
+        houses = [houses]
+
     c = 1
     for i in houses:
         house = pd.read_csv('data/heatpump_dataset/SFH{}.csv'.format(i))
@@ -108,6 +119,7 @@ def process_heatpump(houses):
             df = pd.concat([df, house], join="inner")
         c += 1
     return df
+
 
 def seq2last_point(agg_power, device_power, w):
     """
@@ -125,7 +137,7 @@ def seq2last_point(agg_power, device_power, w):
     x : np.array
         Array of shape (num_samples, window_size). The input of the model in seq2point format.
     y : np.array
-        Array of shape (num_samples,). The target of the model in seq2point format.
+        Array of shape (num_samples,). The target of the model in seq2last_point format.
     """
 
     # Pad power with w-1 zeros to the left
@@ -143,13 +155,76 @@ def seq2last_point(agg_power, device_power, w):
     # for i in range(len(y)):
     #     y[i] = df_device[device][i+w-1]
 
-    y = np.array(device_power.values) # TODO: needs testing
+    y = np.array(device_power) 
 
     return x, y
 
 
+def seq2seq(agg_power, device_power, w):
+    """
+    Parameters
+    ----------
+    agg_power : pd.Series
+        Aggregated power.
+    device_power : pd.Series
+        Power of the device.
+    w : int
+        Window size.
 
-def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas='drop', standardize=True, ds=1, last_point=False):
+    Returns
+    -------
+    x : np.array
+        Array of shape (num_samples, window_size). The input of the model in seq2seq format.
+    y : np.array
+        Array of shape (num_samples, window_size). The target of the model in seq2seq format.
+    """
+    # Get x in seq2seq format. Slide a window of length w over aggregated power by 1 timestep and store in x (no padding needed)
+    x = np.lib.stride_tricks.as_strided(agg_power, shape=(len(agg_power) - w + 1, w), strides=(agg_power.strides[0], agg_power.strides[0]))
+
+    # Get y in seq2seq format. Slide a window of length w over device power by 1 timestep and store in y (no padding needed)
+    y = np.lib.stride_tricks.as_strided(device_power, shape=(len(device_power) - w + 1, w), strides=(device_power.strides[0], device_power.strides[0]))
+
+    return x, y
+
+def seq2point(agg_power, device_power, w):
+    """
+    Parameters
+    ----------
+    agg_power : pd.Series
+        Aggregated power.
+    device_power : pd.Series
+        Power of the device.
+    w : int
+        Window size.
+
+    Returns
+    -------
+    x : np.array
+        Array of shape (num_samples, window_size). The input of the model in seq2point format.
+    y : np.array
+        Array of shape (num_samples,). The target of the model in seq2point format.
+    """
+    # Pad power with w/2 zeros to the left and right
+    power = np.pad(agg_power, w//2, mode='constant', constant_values=0)
+
+    # Get x in seq2point format. Slide a window of length w over power by 1 timestep and store in x
+    x = np.lib.stride_tricks.as_strided(power, shape=(len(power) - w + 1, w), strides=(power.strides[0], power.strides[0]))
+
+    # Pad device with w/2 zeros to the left and right
+    # device_power = np.pad(device_power, w//2, mode='constant', constant_values=0)
+    
+    # # Get y in seq2point format. Slide a window of length w over device by 1 timestep and store the midpoint of the window in y
+    # l = len(device_power)
+    # y = np.zeros(l)
+    # for i in range(len(y)):
+    #     y[i] = device_power[i+w//2] # the equivalent is to just use the original device sequence
+
+    y = np.array(device_power)
+
+    return x, y
+
+
+def preprocess(houses, test_houses, source_domain, target_domain, device, w, nas='drop', standardize=True, ds=1, mode='midpoint'):
     """
     Parameters
     ----------
@@ -175,66 +250,120 @@ def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas=
     
     Returns
     -------
-    x : np.array
-        Array of shape (num_samples, window_size). The input of the model in seq2point format.
-    y : np.array
-        Array of shape (num_samples,). The target of the model in seq2point format.
+    X_train : np.array
+        Array of shape (num_samples, window_size). The training input in 'mode' format.
+    Y_train : np.array
+        Array of shape (num_samples,). The training targets in 'mode' format.
+    X_val : np.array
+        Array of shape (num_samples, window_size). The validation input in 'mode' format.
+    Y_val : np.array
+        Array of shape (num_samples,). The validation targets in 'mode' format.
     x_test : np.array
-        Array of shape (num_samples, window_size). The test set in seq2point format.
+        Array of shape (num_samples, window_size). The test set in 'mode' format.
     y_test : np.array
-        Array of shape (num_samples,). The test targets in seq2point format.
+        Array of shape (num_samples,). The test targets in 'mode' format.
     """
-    if source_domain == 'redd':
-        df_device = process_redd(houses,ds,nas,device)
-    elif source_domain == 'ukdale':
-        df_device = process_ukdale(houses,ds, device)
-    elif source_domain == 'pc':
-        df_device = process_pc(device)
-    elif source_domain == 'heatpump':
-        df_device = process_heatpump(houses)
+
+    # Prepare training set
+    train_houses = []
+    for house in houses:
+        if source_domain == 'redd':
+            train_houses.append(process_redd(house,ds,nas,device))
+        elif source_domain == 'ukdale':
+            train_houses.append(process_ukdale(house,ds, device))
+        elif source_domain == 'pc':
+            df_device = process_pc(device) # unmaintained code
+        elif source_domain == 'heatpump':
+            train_houses.append(process_heatpump(house))
     
-
-    #rename 'main' column to 'power'
-    df_device.rename(columns={'main': 'power'}, inplace=True)
-
-    # Standardize the data
+    # Prepare scalers
     input_scaler = StandardScaler()
     output_scaler = StandardScaler()
+    # Concatenate train houses and fit scalers on them
     if standardize:
         # Scale aggregated power   
-        agg =  input_scaler.fit_transform(df_device['power'].values.reshape(-1, 1))
-        df_device['power'] = agg.reshape(-1, 1)
+        # agg =  input_scaler.fit_transform(df_device['power'].values.reshape(-1, 1))
+        # df_device['power'] = agg.reshape(-1, 1)
 
-        # Scale device power
-        dev = output_scaler.fit_transform(df_device[device].values.reshape(-1, 1))
-        df_device[device] = dev.reshape(-1, 1)
+        # # Scale device power
+        # dev = output_scaler.fit_transform(df_device[device].values.reshape(-1, 1))
+        # df_device[device] = dev.reshape(-1, 1)
 
+        # for house in train_houses:
+        #     # Fit scaler on main power
+        #     input_scaler.partial_fit(house['main'].values.reshape(-1, 1))
+        #     # Fit scaler on device power
+        #     output_scaler.partial_fit(house[device].values.reshape(-1, 1))
 
-    # Seq2LastPoint
-    if last_point:
-        x, y = seq2last_point(df_device['power'], df_device[device], w)
-    # Seq2Point
-    else:
-        # Pad power with w/2 zeros to the left and right
-        power = np.pad(df_device['power'], w//2, mode='constant', constant_values=0)
-
-        # Get x in seq2point format. Slide a window of length w over power by 1 timestep and store in x
-        x = np.lib.stride_tricks.as_strided(power, shape=(len(power) - w + 1, w), strides=(power.strides[0], power.strides[0]))
-
-        # Pad device with w/2 zeros to the left and right
-        device_power = np.pad(df_device[device], w//2, mode='constant', constant_values=0)
         
-        # Get y in seq2point format. Slide a window of length w over device by 1 timestep and store the midpoint of the window in y
-        l = len(df_device)
-        y = np.zeros(l)
-        for i in range(len(y)):
-            y[i] = device_power[i+w//2] # the equivalent is to just use the original device sequence
+        # Concatenate all houses
+        concat_houses = pd.concat(train_houses, axis=0)
+        
+        # Fit scalers
+        input_scaler.fit(concat_houses['main'].values.reshape(-1, 1))
+        output_scaler.fit(concat_houses[device].values.reshape(-1, 1))
 
+    x_train = []
+    y_train = []
+    x_val = []
+    y_val = []
+    for house in train_houses:
+
+        if standardize:
+            # Scale main load
+            main_load = input_scaler.transform(house['main'].values.reshape(-1, 1))
+            main_load = main_load.reshape(-1, 1).flatten()
+            # Scale device load
+            device_load = output_scaler.transform(house[device].values.reshape(-1, 1))
+            device_load = device_load.reshape(-1, 1).flatten()
+        else:
+            main_load = house['main']
+            device_load = house[device]
+
+        # Get validation set
+        main_load_val = main_load[-int(len(main_load)*0.1):]
+        device_load_val = device_load[-int(len(device_load)*0.1):]
+        main_load = main_load[:-int(len(main_load)*0.1)]
+        device_load = device_load[:-int(len(device_load)*0.1)]
+
+        # Seq2LastPoint
+        if mode == 'last_point':
+            x, y = seq2last_point(main_load, device_load, w)
+            x_train.append(x)
+            y_train.append(y)
+            x, y = seq2last_point(main_load_val, device_load_val, w)
+            x_val.append(x)
+            y_val.append(y)
+        # Seq2seq
+        elif mode == 'sequence':
+            x, y = seq2seq(main_load, device_load, w)
+            x_train.append(x)
+            y_train.append(y)
+            x, y = seq2seq(main_load_val, device_load_val, w)
+            x_val.append(x)
+            y_val.append(y)
+        # Seq2Point
+        elif mode == 'midpoint':
+            x, y = seq2point(main_load, device_load, w)
+            x_train.append(x)
+            y_train.append(y)
+            x, y = seq2point(main_load_val, device_load_val, w)
+            x_val.append(x)
+            y_val.append(y)
+            
+    # Concatenate X_train and Y_train
+    X_train = np.concatenate(x_train, axis=0)
+    Y_train = np.concatenate(y_train, axis=0)
+
+    # Concatenate X_val and Y_val
+    X_val = np.concatenate(x_val, axis=0)
+    Y_val = np.concatenate(y_val, axis=0)
     
-
-
-    
-    # Load multiple houses for testing
+    print(f'X_train shape: {X_train.shape}')  #!! Something happens above here and below line 318
+    print(f'Y_train shape: {Y_train.shape}')
+    print(f'X_val shape: {X_val.shape}')
+    print(f'Y_val shape: {Y_val.shape}')
+    # Prepare test set
     if test_houses:
         if target_domain == 'redd':
             df_device_test = process_redd(test_houses,ds,nas,device)
@@ -261,28 +390,19 @@ def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas=
 
 
         # Seq2LastPoint
-        if last_point:
+        if mode == 'last_point':
             x_test, y_test = seq2last_point(df_device_test['power'], df_device_test[device], w)
-        else:
-            #Seq2Point
-            # Pad power with w/2 zeros to the left and right
-            power_test = np.pad(df_device_test['power'], w//2, mode='constant', constant_values=0)
-
-            # Pad device with w/2 zeros to the left and right
-            device_power_test = np.pad(df_device_test[device], w//2, mode='constant', constant_values=0)
-            
-            # Get x in seq2point format. Slide a window of length w over power by 1 timestep and store in x
-            x_test = np.lib.stride_tricks.as_strided(power_test, shape=(len(power_test) - w + 1, w), strides=(power_test.strides[0], power_test.strides[0]))
-
-            # Get y in seq2point format. Slide a window of length w over device by 1 timestep and store the midpoint of the window in y
-            l = len(df_device_test)
-            y_test = np.zeros(l)
-            for i in range(len(y_test)):
-                y_test[i] = device_power_test[i+w//2]
+        # Seq2seq
+        elif mode == 'sequence':
+            x_test, y_test = seq2seq(df_device_test['power'].values, df_device_test[device].values, w)
+        # Seq2Point
+        elif mode == 'midpoint':
+            x_test, y_test = seq2point(df_device_test['power'], df_device_test[device], w)
         
     # # Save scaler
     # joblib.dump(input_scaler, "scaler_heatpump_houses34.save")
+    # joblib.dump(output_scaler, "output_scaler_heatpump_house12.save")
 
-    return x, y, x_test, y_test, output_scaler
+    return X_train, Y_train, X_val, Y_val, x_test, y_test, output_scaler
 
 
