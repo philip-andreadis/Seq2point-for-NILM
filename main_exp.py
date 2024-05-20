@@ -114,7 +114,7 @@ if __name__ == "__main__":
     loops = 3 # set the number of training iterations
     final_metrics = [] # store the final metrics for each loop
     save = True # save the model
-    last_point = True if params['md'] == 'last_point' else False # disaggregation mode
+    mode = params['md'] 
 
     # Filename
     filename = f'{params["device"]}_house{houses_str}on{houses_test_str}_{sflag}_{params["nas"]}_{params["sr"]}_{params["lr"]}_{params["loss"]}_{params["epochs"]}epoch_{params["batch_size"]}b_{tflag}'
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         # Get source and target domains, in seq2point format
         X_train, Y_train, X_test, Y_test, output_scaler = seq2point(params['houses'], params['houses_test'], source_domain=params['source'],
                                                                      target_domain=params['target'], device=params['device'], w=599, 
-                                                                     standardize=params['scale'], ds=params['sr'], nas=params['nas'], last_point=last_point)
+                                                                     standardize=params['scale'], ds=params['sr'], nas=params['nas'], mode=mode)
         
         # Reduce the size of the dataset for script testing (toggle commenting)
         # X_train = X_train[:1000]

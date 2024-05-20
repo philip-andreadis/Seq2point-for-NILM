@@ -149,7 +149,7 @@ def seq2last_point(agg_power, device_power, w):
 
 
 
-def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas='drop', standardize=True, ds=1, last_point=False):
+def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas='drop', standardize=True, ds=1, mode='midpoint'):
     """
     Parameters
     ----------
@@ -211,7 +211,7 @@ def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas=
 
 
     # Seq2LastPoint
-    if last_point:
+    if mode == 'last_point':
         x, y = seq2last_point(df_device['power'], df_device[device], w)
     # Seq2Point
     else:
@@ -261,7 +261,7 @@ def seq2point(houses, test_houses, source_domain, target_domain, device, w, nas=
 
 
         # Seq2LastPoint
-        if last_point:
+        if mode == 'last_point':
             x_test, y_test = seq2last_point(df_device_test['power'], df_device_test[device], w)
         else:
             #Seq2Point
