@@ -3,9 +3,11 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import regularizers
 from keras.callbacks import CSVLogger
+import math
+from utils import CustomEarlyStopping
 
 class CNNModel():
-    def __init__(self, optimizer, loss='mse', metrics=['mse', 'mae']):
+    def __init__(self, optimizer, mode='midpoint', w=599, loss='mse', metrics=['mse', 'mae']):
         """
         Initialization function, it creates an instance of the CNN model and compiles it
 
@@ -17,6 +19,8 @@ class CNNModel():
             Optimizer to use for training.
         metrics : list
             List of metrics to use for training.
+        w : int
+            Window size.
         
         Returns:
         ----------
@@ -24,12 +28,20 @@ class CNNModel():
             The compiled CNN model.
             
         """
+        # Set the window size
+        self.w = w
+
+        # Set number of output nodes according to the disaggregation mode
+        if mode == 'sequence':
+            self.out_nodes = self.w
+        else:
+            self.out_nodes = 1
         
         self.MODEL_NAME = 'CNN'
         # Create the CNN
         self.model = keras.Sequential(
                  [
-                    keras.Input(shape=(599,1)),
+                    keras.Input(shape=(self.w,1)),
                     layers.Conv1D(30, 10, strides=1, activation=layers.LeakyReLU(), padding='same'),
                     layers.Conv1D(30, 8, strides=1, padding='same', activation=layers.LeakyReLU()),
                     layers.Conv1D(40, 6, strides=1, padding='same', activation=layers.LeakyReLU()),
@@ -37,22 +49,51 @@ class CNNModel():
                     layers.Conv1D(50, 5, strides=1, padding='same', activation=layers.LeakyReLU()),
                     layers.Flatten(), 
                     layers.Dense(1024, activation=layers.LeakyReLU()),
-                    layers.Dense(1, activation='linear')
+                    layers.Dense(self.out_nodes, activation='linear')
                  ]
         )
 
+        # Early stopping callback
+        self.early_stopping = tf.keras.callbacks.EarlyStopping(
+                                    monitor='val_loss',
+                                    min_delta=0,
+                                    patience=5,
+                                    verbose=1,
+                                    mode='auto',
+                                    baseline=None,
+                                    restore_best_weights=False,
+                                    start_from_epoch=14
+                                )
+        
+        # Custom early stopping
+        self.custom_early_stopping = CustomEarlyStopping(patience=5)
+        
+        # Learning rate scheduler
+        def scheduler(epoch, lr):
+            return lr * math.exp(-0.01*epoch) 
+
+        # Define scheduler
+        self.lr_scheduler = keras.callbacks.LearningRateScheduler(scheduler, verbose=1)
+          
         # Compile the model
         self.model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
 
 
-    def train(self, X_train, Y_train, dir, filename, i, epochs=20, batch_size=32, verbose=2):
+    def train(self, X_train, Y_train, X_val, Y_val, dir, filename, i, epochs=20, batch_size=32, verbose=2):
 
         # Check if GPU is available
         print("\n ---Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
-        # Fit the model
+        # Csv logger
         self.csv_logger = CSVLogger(dir + '/' + 'training_history_' + filename + '(' + str(i) + ')' + '.csv', separator=',', append=False)
-        self.history = self.model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, shuffle=True,validation_split=0.1, callbacks=[self.csv_logger], verbose=verbose)
+
+        # Choose callbacks
+        # callbacks = [self.csv_logger, self.early_stopping, self.lr_scheduler]
+        callbacks = [self.csv_logger, self.early_stopping]
+        # callbacks = [self.csv_logger]
+
+        # Fit the model    
+        self.history = self.model.fit(X_train, Y_train, validation_data=(X_val,Y_val), epochs=epochs, batch_size=batch_size, shuffle=True, validation_split=0.1, callbacks=callbacks, verbose=verbose)
         
     def freeze_conv(self):
         for layer in self.model.layers[:-2]:
@@ -77,4 +118,3 @@ class CNNModel():
         # serialize weights to HDF5
         self.model.save_weights(dir + "/" + filename + '.h5')
         print("Saved model to disk")
-
