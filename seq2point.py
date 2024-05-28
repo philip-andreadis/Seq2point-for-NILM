@@ -182,7 +182,7 @@ def seq2seq(agg_power, device_power, w):
     x = np.lib.stride_tricks.as_strided(agg_power, shape=(len(agg_power) - w + 1, w), strides=(agg_power.strides[0], agg_power.strides[0]))
 
     # Get y in seq2seq format. Slide a window of length w over device power by 1 timestep and store in y (no padding needed)
-    y = np.lib.stride_tricks.as_strided(device_power, shape=(len(device_power) - w + 1, w), strides=(device_power.strides[0], device_power.strides[0]))
+    y = np.lib.stride_tricks.as_strided(device_power, shape=(len(device_power) - w + 1, w), strides=(device_power.strides[0], device_power.strides[0])) 
 
     return x, y
 
@@ -320,6 +320,8 @@ def preprocess(houses, test_houses, source_domain, target_domain, device, w, nas
             main_load = house['main']
             device_load = house[device]
 
+        
+
         # Get validation set
         main_load_val = main_load[-int(len(main_load)*0.1):]
         device_load_val = device_load[-int(len(device_load)*0.1):]
@@ -329,40 +331,48 @@ def preprocess(houses, test_houses, source_domain, target_domain, device, w, nas
         # Seq2LastPoint
         if mode == 'last_point':
             x, y = seq2last_point(main_load, device_load, w)
+            x = np.float32(x)                           # Convert to smaller data type for memory efficiency
+            y = np.float32(y)
             x_train.append(x)
             y_train.append(y)
             x, y = seq2last_point(main_load_val, device_load_val, w)
+            x = np.float32(x)                           
+            y = np.float32(y)
             x_val.append(x)
             y_val.append(y)
         # Seq2seq
         elif mode == 'sequence':
-            x, y = seq2seq(main_load, device_load, w)
+            x, y = seq2seq(main_load.values, device_load.values, w)
+            x = np.float32(x)                           # Convert to smaller data type for memory efficiency
+            y = np.float32(y)
             x_train.append(x)
             y_train.append(y)
-            x, y = seq2seq(main_load_val, device_load_val, w)
+            x, y = seq2seq(main_load_val.values, device_load_val.values, w)
+            x = np.float32(x)                           
+            y = np.float32(y)
             x_val.append(x)
             y_val.append(y)
         # Seq2Point
         elif mode == 'midpoint':
             x, y = seq2point(main_load, device_load, w)
+            x = np.float32(x)                           # Convert to smaller data type for memory efficiency
+            y = np.float32(y)
             x_train.append(x)
             y_train.append(y)
             x, y = seq2point(main_load_val, device_load_val, w)
+            x = np.float32(x)
+            y = np.float32(y)
             x_val.append(x)
             y_val.append(y)
-            
+    
     # Concatenate X_train and Y_train
     X_train = np.concatenate(x_train, axis=0)
     Y_train = np.concatenate(y_train, axis=0)
-
+    
     # Concatenate X_val and Y_val
     X_val = np.concatenate(x_val, axis=0)
     Y_val = np.concatenate(y_val, axis=0)
     
-    print(f'X_train shape: {X_train.shape}')  #!! Something happens above here and below line 318
-    print(f'Y_train shape: {Y_train.shape}')
-    print(f'X_val shape: {X_val.shape}')
-    print(f'Y_val shape: {Y_val.shape}')
     # Prepare test set
     if test_houses:
         if target_domain == 'redd':
@@ -394,10 +404,18 @@ def preprocess(houses, test_houses, source_domain, target_domain, device, w, nas
             x_test, y_test = seq2last_point(df_device_test['power'], df_device_test[device], w)
         # Seq2seq
         elif mode == 'sequence':
-            x_test, y_test = seq2seq(df_device_test['power'].values, df_device_test[device].values, w)
+            x_test,_ = seq2seq(df_device_test['power'].values, df_device_test[device].values, w)
+            y_test = np.array(df_device_test[device]) # y_test here is the original device power (in scalars) and not windowed as y_train and y_val
         # Seq2Point
         elif mode == 'midpoint':
             x_test, y_test = seq2point(df_device_test['power'], df_device_test[device], w)
+
+    print(f'X_train shape: {X_train.shape}')  
+    print(f'Y_train shape: {Y_train.shape}')
+    print(f'X_val shape: {X_val.shape}')
+    print(f'Y_val shape: {Y_val.shape}')
+    print(f'X_test shape: {x_test.shape}')
+    print(f'Y_test shape: {y_test.shape}')
         
     # # Save scaler
     # joblib.dump(input_scaler, "scaler_heatpump_houses34.save")

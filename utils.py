@@ -108,6 +108,87 @@ def avg_metrics(final_metrics, loops):
     return metrics_avg
 
 
+# Function to calculate the diagonal averages
+def diagonal_averages(array):
+    """
+    This function computes the average of the diagonals of a 2D array.
+
+    Parameters
+    ----------
+    array : numpy array
+        The input 2D array.
+
+    Returns
+    -------
+    result : numpy array
+        The average of the diagonals.
+    
+    """
+    rows, cols = array.shape
+    result = []
+
+    # Iterate over the diagonals starting from the top-left to the bottom-right
+    for d in range(rows + cols - 1):
+        diagonal_elements = []
+        
+        # Determine the range for the row indices
+        row_start = max(0, d - cols + 1)
+        row_end = min(d + 1, rows)
+        
+        for i in range(row_start, row_end):
+            j = d - i
+            if 0 <= j < cols:
+                diagonal_elements.append(array[i, j])
+
+        if diagonal_elements:
+            diagonal_avg = np.mean(diagonal_elements)
+            result.append(diagonal_avg)
+    
+    return np.array(result)
+
+
+def energy_per_day_error(y_test, preds, granularity):
+    """
+    This function computes the energy per day error (EpD) of the model.This is 
+    the average error of daily appliance consumption prediction, for a given number of days.
+
+    Parameters
+    ----------
+    y_test : numpy array
+        Ground truth.
+    preds : numpy array
+        Predictions.
+    granularity : int
+        Granularity of y_test/predictions.
+    
+    Returns
+    -------
+    epd : float
+        The energy per day error.
+    
+    """
+
+    samples_per_day = 86400//granularity # num of samples per day
+    # Split preds/y_test into days
+    y_intervals = []
+    p_intervals = []
+    for i in range(0, len(y_test), samples_per_day):
+        y_intervals.append(y_test[i:i+samples_per_day])
+        p_intervals.append(preds[i:i+samples_per_day])
+    # Remove last incomplete interval
+    y_intervals.pop()
+    p_intervals.pop()
+    # To np array
+    y_intervals = np.array(y_intervals)
+    p_intervals = np.array(p_intervals)
+    # Compute daily error
+    e_y = np.sum(y_intervals, axis=1)
+    e_p = np.sum(p_intervals, axis=1)
+    # Compute EpD
+    epd  = np.sum(np.abs(e_y - e_p))/len(e_y)
+
+    return epd
+
 
 
 class CustomEarlyStopping(tf.keras.callbacks.Callback):
@@ -142,3 +223,5 @@ class CustomEarlyStopping(tf.keras.callbacks.Callback):
             self.model.stop_training = True
 
         self.prev_loss = current_loss
+
+

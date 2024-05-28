@@ -2,7 +2,7 @@ import pandas as pd
 import time
 from seq2point import preprocess
 from cnn_model import CNNModel
-from utils import threshold, avg_metrics
+from utils import threshold, avg_metrics, diagonal_averages, energy_per_day_error
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -17,7 +17,7 @@ import sys
 import math
 import os
 
-def compute_metrics(Y_test, predictions, i, device):
+def compute_metrics(Y_test, predictions, i, device, granularity):
     """Compute the metrics of the model.
     
     Parameters:
@@ -30,6 +30,8 @@ def compute_metrics(Y_test, predictions, i, device):
         Loop number.
     device : str
         Target device.
+    granularity : int
+        Granularity of y_test/predictions.
         
     Returns:
     ----------
@@ -41,10 +43,16 @@ def compute_metrics(Y_test, predictions, i, device):
     # Compute regression metrics
     mse = mean_squared_error(Y_test, predictions)
     mae = mean_absolute_error(Y_test, predictions)
-    rmse = math.sqrt(mean_squared_error(Y_test, predictions))
+    rmse = math.sqrt(mean_squared_error(Y_test, predictions)) 
+    mre = np.sum(np.abs(Y_test - predictions))/np.max(Y_test) # mean relative error
+    sae = np.abs(np.sum(predictions) - np.sum(Y_test))/np.sum(Y_test) # signal aggregate error
+    epd =  energy_per_day_error(Y_test, predictions, granularity) # energy per day (average error of daily appliance consumption prediction)
     scores.append('MAE: %.3f' % mae)
     scores.append('MSE: %.3f' % mse)
     scores.append('RMSE: %.3f' % rmse)
+    scores.append('MRE: %.3f' % mre)
+    scores.append('EpD: %.3f' % epd)
+    scores.append('SAE: %.3f' % sae)
 
     # Threshold predictions and true consumption
     predictions_thres = threshold(predictions, device)
@@ -60,6 +68,9 @@ def compute_metrics(Y_test, predictions, i, device):
     print('MAE: %.3f' % mae)
     print('MSE: %.3f' % mse)
     print('RMSE: %.3f' % rmse)
+    print('MRE: %.3f' % mre)
+    print('EpD: %.3f' % epd)
+    print('SAE: %.3f' % sae)
     print('Accuracy: %.3f' % acc)
     print('Fscore: %.3f' % f1)
     
@@ -132,12 +143,12 @@ if __name__ == "__main__":
                                                                      standardize=params['scale'], ds=params['sr'], nas=params['nas'], mode=params['md'])
         
         # Reduce the size of the dataset for script testing (toggle commenting)
-        X_train = X_train[:1000]
-        Y_train = Y_train[:1000]
-        X_val = X_val[:100]
-        Y_val = Y_val[:100]
-        X_test = X_test[:1000]
-        Y_test = Y_test[:1000]
+        # X_train = X_train[:1000]
+        # Y_train = Y_train[:1000]
+        # X_val = X_val[:100]
+        # Y_val = Y_val[:100]
+        # X_test = X_test[:1000]
+        # Y_test = Y_test[:1000]
 
         print("Train/test split:")
         print("X_train shape:", X_train.shape)
@@ -149,9 +160,9 @@ if __name__ == "__main__":
         
 
         # Instantiate the CNN model
-        model = CNNModel(loss=params['loss'],optimizer=tf.keras.optimizers.Adam(learning_rate=params['lr']),metrics=['mse', 'mae'])
+        model = CNNModel(mode=params['md'], loss=params['loss'],optimizer=tf.keras.optimizers.Adam(learning_rate=params['lr']),metrics=['mse', 'mae'])
 
-        # reshape X_train and X_val from [samples, timesteps] into [samples, timesteps, features]
+        # Reshape X_train and X_val from [samples, timesteps] into [samples, timesteps, features]
         X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
         X_val = X_val.reshape((X_val.shape[0], X_val.shape[1], 1))
 
@@ -181,6 +192,8 @@ if __name__ == "__main__":
         n_features = 1
         X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
 
+        
+
         # Make predictions
         print(f'Disaggregating on {params["target"]} domain...')
         predictions = model.disaggregate(X_test)
@@ -189,13 +202,35 @@ if __name__ == "__main__":
             Y_test_original = output_scaler.inverse_transform(Y_test.reshape(-1, 1))
         else:
             Y_test_original = Y_test
+
+        # Averaging of prediction windows for sequence2sequence mode
+        if params['md'] == 'sequence':
+            predictions = diagonal_averages(predictions)
+            predictions = np.expand_dims(predictions, axis=1)
+        
+       
         # Save predictions to a txt file
         with open(dir + '/' + 'predictions_' + filename + '(' + str(i) + ')' + '.txt', 'w') as file:
             for prediction in predictions:
                 file.write(','.join(map(str, prediction)) + '\n')
 
-        # Comptute metrics
-        metrics = compute_metrics(Y_test_original, predictions, i, params['device'])
+
+        #TODO: Add EpD and SAE metrics (from self-supervised learning paper)
+
+        # Define granularity of ytest/predictions for computing EpD (only origninal granularities of each dataset are considered here, adjust code if resampling is needed!)
+        if params["source"] == "redd":
+            granularity = 3
+        elif params["source"] == "ukdale":
+            granularity = 6
+        elif params["source"] == "heatpump":
+            granularity = 10
+
+
+        # Compute metrics
+        print('TESTING\n')
+        print('Y_test shape:', Y_test_original.shape)
+        print('predictions shape:', predictions.shape)
+        metrics = compute_metrics(Y_test_original, predictions, i, params['device'], granularity)
 
         # Store metrics of the current training loop
         final_metrics.append(metrics)
@@ -204,12 +239,14 @@ if __name__ == "__main__":
         if save:
             model.save_model(dir, filename + '(' + str(i) + ')')
 
+    
 
     # Compute metrics average
     metrics_avg = avg_metrics(final_metrics, loops)
 
     # Save final metrics to txt file
     with open(dir + "/" + 'final_metrics_' + filename + '.txt', 'w') as f:
+        f.write(f"Model: {filename}\n")
         for i,metrics in enumerate(final_metrics):
             f.write(f"Loop {i}:\n")
             for metric in metrics:

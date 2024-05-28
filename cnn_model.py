@@ -7,7 +7,7 @@ import math
 from utils import CustomEarlyStopping
 
 class CNNModel():
-    def __init__(self, optimizer, loss='mse', metrics=['mse', 'mae']):
+    def __init__(self, optimizer, mode='midpoint', w=599, loss='mse', metrics=['mse', 'mae']):
         """
         Initialization function, it creates an instance of the CNN model and compiles it
 
@@ -19,6 +19,8 @@ class CNNModel():
             Optimizer to use for training.
         metrics : list
             List of metrics to use for training.
+        w : int
+            Window size.
         
         Returns:
         ----------
@@ -26,12 +28,20 @@ class CNNModel():
             The compiled CNN model.
             
         """
+        # Set the window size
+        self.w = w
+
+        # Set number of output nodes according to the disaggregation mode
+        if mode == 'sequence':
+            self.out_nodes = self.w
+        else:
+            self.out_nodes = 1
         
         self.MODEL_NAME = 'CNN'
         # Create the CNN
         self.model = keras.Sequential(
                  [
-                    keras.Input(shape=(599,1)),
+                    keras.Input(shape=(self.w,1)),
                     layers.Conv1D(30, 10, strides=1, activation=layers.LeakyReLU(), padding='same'),
                     layers.Conv1D(30, 8, strides=1, padding='same', activation=layers.LeakyReLU()),
                     layers.Conv1D(40, 6, strides=1, padding='same', activation=layers.LeakyReLU()),
@@ -39,7 +49,7 @@ class CNNModel():
                     layers.Conv1D(50, 5, strides=1, padding='same', activation=layers.LeakyReLU()),
                     layers.Flatten(), 
                     layers.Dense(1024, activation=layers.LeakyReLU()),
-                    layers.Dense(1, activation='linear')
+                    layers.Dense(self.out_nodes, activation='linear')
                  ]
         )
 
